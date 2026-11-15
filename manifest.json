@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Quick Translator",
+  "version": "1.0",
+  "description": "Translate between Korean, English and Japanese with a copyable code box.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Translator",
+    "default_icon": "icon.png"
+  },
+  "host_permissions": [
+    "https://translate.googleapis.com/*"
+  ],
+  "icons": {
+    "128": "icon.png"
+  }
+}

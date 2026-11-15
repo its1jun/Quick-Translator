@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="langs">
+    <select id="sourceLang">
+      <option value="ko">한국어</option>
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+    <button id="swapBtn" class="iconbtn" title="Swap languages">⇄</button>
+    <select id="targetLang">
+      <option value="ko">한국어</option>
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+    <button id="themeBtn" class="iconbtn" title="Toggle dark mode"><span class="moon">☾</span><span class="sun">☀</span></button>
+  </div>
+
+  <textarea id="input" rows="2" placeholder="Enter: translate / Shift+Enter: new line"></textarea>
+
+  <div class="codebox" id="codebox" hidden>
+    <div class="codebox-header">
+      <span class="label"><span class="spinner" id="spinner"></span><span id="codeLabel">English</span></span>
+      <button id="copyBtn">Copy</button>
+    </div>
+    <div class="skeleton" id="skeleton"><i></i><i></i></div>
+    <pre><code id="output"></code></pre>
+  </div>
+  <p id="status"></p>
+  <script src="popup.js"></script>
+</body>
+</html>
