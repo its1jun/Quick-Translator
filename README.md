@@ -12,5 +12,5 @@ chrome://extensions
 5. 왼쪽 위 "압축해제된 확장 프로그램 로드" 실행
    `압축해제된 확장 프로그램 폴더`위치:
    ```text
-   %USERPROFILE%\Chrome_Extensions\
+   %USERPROFILE%\Chrome_Extensions
    ```
