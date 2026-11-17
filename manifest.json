@@ -1,20 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Quick Translator",
-  "version": "1.0",
-  "description": "Translate between Korean, English and Japanese with a copyable code box.",
-  "permissions": [
-    "storage"
-  ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "Translator",
-    "default_icon": "icon.png"
-  },
-  "host_permissions": [
-    "https://translate.googleapis.com/*"
-  ],
-  "icons": {
-    "128": "icon.png"
-  }
+  "name": "KO/EN/JA Translator",
+  "version": "1.2.0",
+  "permissions": ["storage"],
+  "host_permissions": ["https://translate.googleapis.com/*"],
+  "action": { "default_popup": "popup.html", "default_icon": "icon.png" },
+  "icons": { "128": "icon.png" }
 }

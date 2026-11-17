@@ -1,46 +1,39 @@
 :root {
-  --bg: #ffffff; --fg: #1f1f1f; --border: #ccc; --field-bg: #ffffff;
-  --btn-hover: #f1f1f1; --code-bg: #1e1e1e; --code-head: #2d2d2d;
-  --error: #d33; --placeholder: #888;
+  color-scheme: light dark;  /* form controls, bg and text follow the theme automatically */
+  --line: color-mix(in srgb, CanvasText 18%, transparent); --hover: color-mix(in srgb, CanvasText 8%, transparent);
+  /* code box colors: light-dark(light, dark) */
+  --code-bg: light-dark(#f6f6f7, #1e1e1e); --code-head: light-dark(#ebebed, #2d2d2d); --code-fg: light-dark(#1f1f1f, #e6e6e6); --code-dim: light-dark(#666, #aaa);
+  --code-btn: light-dark(#333, #ddd); --code-line: light-dark(#ccc, #444); --code-hover: light-dark(#0000000f, #ffffff1a);
+  --spin-track: light-dark(#ccc, #555); --spin-head: light-dark(#2563eb, #7db4ff);
 }
-:root[data-theme="dark"] {
-  --bg: #1b1c1f; --fg: #e8e8e8; --border: #3c3f45; --field-bg: #26282c;
-  --btn-hover: #33363b; --code-bg: #0f1012; --code-head: #25272b;
-  --error: #ff7b7b; --placeholder: #8a8d93;
-  color-scheme: dark;
-}
-body { width: 360px; margin: 0; padding: 14px; font-family: -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; box-sizing: border-box; background: var(--bg); color: var(--fg); }
-.langs { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
-.langs select { flex: 1; min-width: 0; padding: 6px; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; background: var(--field-bg); color: var(--fg); }
-.iconbtn { border: 1px solid var(--border); background: var(--field-bg); color: var(--fg); border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 14px; }
-.iconbtn:hover { background: var(--btn-hover); }
-/* Theme button: the moon always sits in the layout, so the button size is based on the moon.
-   The sun is overlaid on top of it and never changes the button size. */
-#themeBtn { position: relative; }
-#themeBtn .sun { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; visibility: hidden; }
-:root[data-theme="dark"] #themeBtn .moon { visibility: hidden; }
-:root[data-theme="dark"] #themeBtn .sun { visibility: visible; }
-textarea { width: 100%; box-sizing: border-box; padding: 8px; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit; line-height: 1.5; overflow-y: hidden; display: block; transition: height .12s ease; background: var(--field-bg); color: var(--fg); }
-textarea::placeholder { color: var(--placeholder); }
-.codebox { margin-top: 12px; border-radius: 8px; overflow: hidden; background: var(--code-bg); }
-.codebox-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--code-head); color: #aaa; font-size: 12px; }
-#copyBtn { background: transparent; color: #ddd; border: 1px solid #555; border-radius: 4px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
-#copyBtn:hover { background: #3a3a3a; }
-pre { margin: 0; padding: 10px; max-height: 220px; overflow: auto; }
-code { color: #e6e6e6; font-family: Consolas, Menlo, monospace; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
-#status { margin: 8px 0 0; font-size: 12px; color: var(--error); }
-#status:empty { display: none; }
-.label { display: inline-flex; align-items: center; gap: 6px; }
-.spinner { display: none; width: 11px; height: 11px; border: 2px solid #555; border-top-color: #7db4ff; border-radius: 50%; animation: spin .7s linear infinite; }
-.codebox.loading .spinner { display: inline-block; }
-.codebox.loading code { opacity: .35; animation: pulse 1s ease-in-out infinite; }
-.skeleton { display: none; padding: 12px 10px; }
-.codebox.loading.empty .skeleton { display: block; }
-.codebox.loading.empty pre { display: none; }
-.skeleton i { display: block; height: 10px; border-radius: 5px; margin-bottom: 8px; background: linear-gradient(90deg, #333 25%, #4a4a4a 50%, #333 75%); background-size: 200% 100%; animation: shimmer 1.1s linear infinite; }
-.skeleton i:nth-child(2) { width: 65%; margin-bottom: 0; }
-.codebox.done code { animation: fadein .25s ease; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes pulse { 50% { opacity: .15; } }
-@keyframes shimmer { to { background-position: -200% 0; } }
-@keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+/* hidden until saved settings are applied (avoids a flash); shown anyway after 1s in case the script fails */
+body:not(.ready) { visibility: hidden; animation: reveal 0s 1s forwards; }
+@keyframes reveal { to { visibility: visible; } }
+body { width: 360px; margin: 0; padding: 14px; box-sizing: border-box; font: 13px/1.5 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; background: Canvas; color: CanvasText; }
+select, button, textarea { font: inherit; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; }
+select:focus, textarea:focus { outline: none; border-color: color-mix(in srgb, CanvasText 50%, transparent); }
+button { cursor: pointer; transition: background .15s; }
+button:hover { background: var(--hover); }
+#swap, #theme { padding: 6px 10px; }
+.bar { display: flex; gap: 6px; margin-bottom: 8px; }
+select { flex: 1; min-width: 0; }
+option { background: Canvas; color: CanvasText; }
+textarea { display: block; width: 100%; box-sizing: border-box; resize: none; field-sizing: content; min-height: calc(2lh + 14px); max-height: 160px; }
+
+/* theme button: the moon sets the size, the sun is overlaid */
+#theme { position: relative; }
+.moon { color: light-dark(ButtonText, transparent); }
+.sun { position: absolute; inset: 0; display: grid; place-items: center; color: light-dark(transparent, ButtonText); }
+
+.box { margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--code-bg); color: var(--code-fg); }
+.head { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--code-head); color: var(--code-dim); font-size: 12px; }
+.head > span { display: flex; align-items: center; gap: 6px; }
+.head button { padding: 2px 8px; font-size: 12px; color: var(--code-btn); border-color: var(--code-line); border-radius: 4px; }
+.head button:hover { background: var(--code-hover); }
+pre { margin: 0; padding: 10px; max-height: 220px; overflow: auto; font: 13px Consolas, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+
+.spin { display: none; width: 11px; height: 11px; border: 2px solid var(--spin-track); border-top-color: var(--spin-head); border-radius: 50%; animation: spin .7s linear infinite; }
+.loading .spin { display: block; }
+.loading pre { animation: pulse 1s infinite; }
+@keyframes spin { to { transform: rotate(1turn); } }
+@keyframes pulse { 50% { opacity: .3; } }

@@ -1,131 +1,75 @@
-const $ = (id) => document.getElementById(id);
-const input = $("input"), output = $("output"), codebox = $("codebox");
-const copyBtn = $("copyBtn"), status = $("status"), themeBtn = $("themeBtn");
-const sourceLang = $("sourceLang"), targetLang = $("targetLang");
-const LANG_NAMES = { ko: "한국어", en: "English", ja: "日本語" };
-// Theme: starts from the system preference, then the saved choice overrides it.
-let isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-function applyTheme() {
-  document.documentElement.dataset.theme = isDark ? "dark" : "light";
-  themeBtn.title = isDark ? "Switch to light mode" : "Switch to dark mode";
-}
-applyTheme();
-themeBtn.addEventListener("click", () => {
-  isDark = !isDark;
-  applyTheme();
-  saveSettings();
-});
+const [src, dst, input, box, lang, out, copy, swap, theme] =
+  ["src", "dst", "input", "box", "lang", "out", "copy", "swap", "theme"].map((id) => document.getElementById(id));
+const TIMEOUT_MS = 10000;
+let dark = matchMedia("(prefers-color-scheme: dark)").matches; // system theme until the user picks one
+let last = "";  // key of the last request, so identical requests are skipped
+let ctrl;       // lets a newer request cancel the previous one
+let saveTimer, copyTimer;
+let restored = false; // saving is blocked until the saved session is loaded, so it cannot be overwritten
 
-const SETTINGS_KEY = "settings";
-const DEFAULTS = { sourceLang: "ko", targetLang: "en", text: "", darkMode: null };
+const applyTheme = () => (document.documentElement.style.colorScheme = dark ? "dark" : "light");
+const saveNow = () => restored && chrome.storage.local.set({ src: src.value, dst: dst.value, text: input.value, dark }).catch(console.warn);
+const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 200); }; // debounced
+addEventListener("pagehide", saveNow); // flush when the popup closes
 
-// Settings are stored as one JSON-serializable object in chrome.storage.local.
-async function loadSettings() {
-  try {
-    const stored = await chrome.storage.local.get(SETTINGS_KEY);
-    return { ...DEFAULTS, ...(stored[SETTINGS_KEY] || {}) };
-  } catch {
-    return { ...DEFAULTS };
-  }
-}
-async function saveSettings() {
-  try {
-    await chrome.storage.local.set({
-      [SETTINGS_KEY]: { sourceLang: sourceLang.value, targetLang: targetLang.value, text: input.value, darkMode: isDark },
-    });
-  } catch (e) {
-    status.textContent = "Could not save settings: " + e.message;
-  }
-}
-
-// Auto-grow: expands with content up to MAX_INPUT_HEIGHT, shrinks when text is deleted.
-const MAX_INPUT_HEIGHT = 160; // px, about 7 lines
-function autoResize() {
-  input.style.height = "auto";
-  const full = input.scrollHeight + (input.offsetHeight - input.clientHeight);
-  input.style.height = Math.min(full, MAX_INPUT_HEIGHT) + "px";
-  input.style.overflowY = full > MAX_INPUT_HEIGHT ? "auto" : "hidden";
-}
-input.addEventListener("input", () => {
-  autoResize();
-  saveSettings(); // save the draft on every keystroke so closing the popup loses nothing
-});
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let seq = 0; // ignore stale responses
 async function translate() {
   const text = input.value.trim();
-  if (!text) { codebox.hidden = true; codebox.classList.remove("loading", "done"); return; }
-  const sl = sourceLang.value, tl = targetLang.value;
-  const mine = ++seq;
-  status.textContent = "";
-  $("codeLabel").textContent = LANG_NAMES[tl];
-  codebox.classList.remove("done");
-  codebox.classList.toggle("empty", !output.textContent);
-  codebox.classList.add("loading");
-  codebox.hidden = false;
+  const key = `${src.value}>${dst.value}:${text}`;
+  box.hidden = !text;
+  if (!text) { ctrl?.abort(); last = ""; return; }
+  if (key === last) return;
+  last = key;
+  ctrl?.abort();
+  ctrl = new AbortController();
+  box.classList.add("loading");
+  lang.textContent = dst.selectedOptions[0]?.text ?? "";
   try {
-    const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" + sl +
-      "&tl=" + tl + "&dt=t&q=" + encodeURIComponent(text);
-    // Keep the loading animation visible for at least 350ms so it can be seen.
-    const [res] = await Promise.all([fetch(url), sleep(350)]);
-    if (!res.ok) throw new Error("HTTP " + res.status);
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=${src.value}&tl=${dst.value}&q=${encodeURIComponent(text)}`;
+    // cancelled by a newer request, or by the timeout so the spinner can never hang forever
+    const res = await fetch(url, { signal: AbortSignal.any([ctrl.signal, AbortSignal.timeout(TIMEOUT_MS)]) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (mine !== seq) return;
-    output.textContent = data[0].map((seg) => seg[0]).join("");
-    codebox.classList.remove("loading", "empty");
-    void codebox.offsetWidth; // restart fade-in animation
-    codebox.classList.add("done");
+    if (!Array.isArray(data?.[0])) throw new Error("Unexpected response");
+    out.textContent = data[0].map((s) => s[0]).join("");
   } catch (e) {
-    if (mine === seq) {
-      codebox.classList.remove("loading", "empty");
-      status.textContent = "Translation failed: " + e.message;
-    }
+    if (e.name === "AbortError") return; // a newer request took over
+    out.textContent = "Error: " + (e.name === "TimeoutError" ? "request timed out" : e.message);
+    last = ""; // allow retrying
   }
+  box.classList.remove("loading");
 }
 
-// If both selects match, move the other one to a different language.
-function keepDifferent(changed) {
-  if (sourceLang.value !== targetLang.value) return;
-  const other = changed === sourceLang ? targetLang : sourceLang;
-  other.value = Object.keys(LANG_NAMES).find((c) => c !== changed.value);
-}
-function onLangChange(e) {
-  keepDifferent(e.target);
-  saveSettings();
-  translate();
-}
-sourceLang.addEventListener("change", onLangChange);
-targetLang.addEventListener("change", onLangChange);
+// any typing or language change: save it; language changes also re-translate
+document.addEventListener("input", (e) => { save(); if (e.target !== input) translate(); });
 
-$("swapBtn").addEventListener("click", () => {
-  [sourceLang.value, targetLang.value] = [targetLang.value, sourceLang.value];
-  saveSettings();
-  translate();
-});
-
-// Enter = translate, Shift+Enter = new line (IME composition is ignored).
+// Enter = translate, Shift+Enter = new line (ignored while an IME is composing)
 input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
-    e.preventDefault();
-    translate();
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); translate(); }
+});
+
+swap.onclick = () => { [src.value, dst.value] = [dst.value, src.value]; save(); translate(); };
+theme.onclick = () => { dark = !dark; applyTheme(); save(); };
+copy.onclick = async () => {
+  clearTimeout(copyTimer); // repeated clicks must not stack timers
+  try {
+    await navigator.clipboard.writeText(out.textContent);
+    copy.textContent = "Copied!";
+  } catch {
+    copy.textContent = "Failed";
   }
-});
+  copyTimer = setTimeout(() => (copy.textContent = "Copy"), 1200);
+};
 
-copyBtn.addEventListener("click", async () => {
-  await navigator.clipboard.writeText(output.textContent);
-  copyBtn.textContent = "Copied!";
-  setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
-});
-
-(async () => {
-  const s = await loadSettings();
-  sourceLang.value = s.sourceLang;
-  targetLang.value = s.targetLang;
-  keepDifferent(sourceLang);
-  if (typeof s.darkMode === "boolean") { isDark = s.darkMode; applyTheme(); }
-  input.value = s.text || "";
-  autoResize();
+// restore the last session; the restored text is selected so Backspace/Delete clears it
+const defaults = () => ({ src: "ko", dst: "en", text: "", dark });
+chrome.storage.local.get(defaults()).catch(defaults).then((s) => {
+  if (typeof s.dark === "boolean") dark = s.dark;
+  applyTheme();
+  src.value = s.src;
+  dst.value = s.dst;
+  if (!src.value) src.value = "ko"; // saved value no longer valid
+  if (!dst.value) dst.value = "en";
+  input.value = String(s.text ?? "");
   input.focus();
-  input.select(); // restored text is pre-selected, so Backspace/Delete clears it
-})();
+  input.select();
+}).catch(console.warn).finally(() => { restored = true; document.body.classList.add("ready"); });
